@@ -16,6 +16,14 @@ impl Diff {
         }
     }
 
+    pub fn get_slice(&self) -> &Range<usize> {
+        &self.slice
+    }
+
+    pub fn get_repl(&self) -> &[u8] {
+        &self.repl
+    }
+
     fn intersects(&self, other: &Self) -> bool {
         self.slice.contains(&other.slice.start) || self.slice.contains(&other.slice.end)
     }
