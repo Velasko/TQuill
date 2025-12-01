@@ -1,37 +1,84 @@
 use std::fs::File;
-use std::io::{self, BufReader};
+use std::io::{self, BufReader, Read, Seek, SeekFrom};
 
 use crate::core::diff::Diff;
 
 #[cfg_attr(test, derive(Debug))]
 struct FileBuffer {
-    cursor: u64,
-    filename: Option<String>,
-    file_buffer: Option<BufReader<File>>,
+    filename: String,
+    file_buffer: BufReader<File>,
+    cursor_pos: u64,
     content_diff: Vec<Diff>,
 }
 
 impl FileBuffer {
-    fn new() -> Self {
-        Self {
-            cursor: 0,
-            filename: None,
-            file_buffer: None,
-            content_diff: Vec::new(),
-        }
-    }
-
     fn open(path: &str) -> io::Result<Self> {
         io::Result::Ok(
             Self {
-                cursor: 0,
-                filename: Some(String::from(path)),
-                file_buffer: Some(BufReader::new(File::open(path)?)),
+                filename: String::from(path),
+                file_buffer: BufReader::new(File::open(path)?),
+                cursor_pos: 0,
                 content_diff: Vec::new(),
             }
         )
     }
 }
+
+impl Read for FileBuffer {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let og_pos = self.file_buffer.stream_position();
+        let content = self.file_buffer.read(buf);
+        let new_pos = self.file_buffer.stream_position();
+
+        content
+    }
+}
+
+impl Seek for FileBuffer {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        match pos {
+            SeekFrom::Start(index) => {
+                let mut acc: i128 = 0;
+                let index = index as u64;
+                for diff in &self.content_diff {
+
+                    let slice = diff.get_slice();
+                    let start = slice.start as i128;
+                    let end = (slice.start + diff.get_repl().len()) as i128;
+
+                    if (index as i128) <= end + acc {
+                        return if (index as i128) < start + acc {
+                            // if index before slice:
+                            self.file_buffer.seek(SeekFrom::Start((index as i128 - acc) as u64)).map(|_| index)
+                        } else {
+                            // if index in slice:
+                            self.file_buffer.seek(SeekFrom::Start(start as u64)).map(|_| index)
+                        };
+                    }
+
+                    // acc = how much slots the slice added | removed
+                    let slice_size = (slice.end - slice.start) as i128;
+                    acc += diff.get_repl().len() as i128 - slice_size;
+                }
+            
+                self.cursor_pos = index;
+                self.file_buffer.seek(SeekFrom::Start(((index as i128)- acc) as u64)).map(|_| index)
+            },
+            SeekFrom::End(index) => {
+                let seek = self.file_buffer.seek(SeekFrom::End(index));
+
+                // sum all complete acc. reverse into decreasing
+                // will that work ??
+                for diff in &self.content_diff {
+                }
+
+                todo!()
+            },
+            SeekFrom::Current(index) => todo!(),
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -41,5 +88,16 @@ mod tests {
     fn open_file() {
         let file = FileBuffer::open("batata.txt");
         assert!(!file.is_ok());
+    }
+
+    #[test]
+    fn how_do_i_fkn_read() {
+        let mut buffer = String::new();
+        let mut file = FileBuffer::open("src/main.rs").unwrap();
+
+        let _ = file.read_to_string(&mut buffer);
+
+        println!("{:?}", buffer.as_bytes());
+
     }
 }
