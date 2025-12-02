@@ -9,7 +9,7 @@ pub struct Diff {
 }
 
 impl Diff {
-    fn new(slice: Range<usize>, data: &[u8]) -> Self {
+    pub fn new(slice: Range<usize>, data: &[u8]) -> Self {
         Self {
             slice,
             repl: Vec::from(data),
@@ -22,6 +22,11 @@ impl Diff {
 
     pub fn get_repl(&self) -> &[u8] {
         &self.repl
+    }
+
+    pub fn size_diff(&self) -> i128 {
+        let pos = (self.repl.len() + self.slice.start) as i128;
+        pos - (self.slice.end as i128)
     }
 
     fn intersects(&self, other: &Self) -> bool {
