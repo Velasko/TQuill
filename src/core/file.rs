@@ -57,8 +57,7 @@ impl Seek for FileBuffer {
                     }
 
                     // acc = how much slots the slice added | removed
-                    let slice_size = (slice.end - slice.start) as i128;
-                    acc += diff.get_repl().len() as i128 - slice_size;
+                    acc += diff.size_diff()
                 }
             
                 self.cursor_pos = index;
@@ -95,9 +94,11 @@ mod tests {
         let mut buffer = String::new();
         let mut file = FileBuffer::open("src/main.rs").unwrap();
 
-        let _ = file.read_to_string(&mut buffer);
+        let diff = Diff::new(3..5, String::from("batata").into_bytes().as_slice());
 
-        println!("{:?}", buffer.as_bytes());
+        file.content_diff.push(diff);
+
+        let _ = file.seek(SeekFrom::End(0));
 
     }
 }
