@@ -6,16 +6,18 @@ use std::rc::Rc;
 use crate::core::diff::Diff;
 
 #[cfg_attr(test, derive(Debug))]
-enum FileBufferCursor {
-    InDiff {
-        diff_index: usize,
-        pos: usize,
-        offset: i128,
-    },
-    InFile {
-        pos: usize,
-        offset: i128
-    }
+enum CursorLocation {
+    InDiff,
+    InFile,
+}
+
+#[cfg_attr(test, derive(Debug))]
+struct CursorInfo {
+    diff_index: usize,
+    diff_pos: usize,
+    file_pos: usize,
+    offset: i128,
+    resting_at: CursorLocation
 }
 
 #[cfg_attr(test, derive(Debug))]
@@ -24,7 +26,7 @@ struct FileBuffer {
     file_buffer: BufReader<File>,
     file_metadata: Metadata,
     content_diff: Vec<Diff>,
-    cursor_pos: FileBufferCursor,
+    cursor_pos: CursorInfo,
 }
 
 impl FileBuffer {
@@ -36,7 +38,13 @@ impl FileBuffer {
                 filename: String::from(path),
                 file_buffer: BufReader::new(file),
                 file_metadata: metadata,
-                cursor_pos: FileBufferCursor::InFile { pos: 0, offset: 0 },
+                cursor_pos: CursorInfo {
+                    diff_index: 0,
+                    diff_pos: 0,
+                    file_pos: 0,
+                    offset: 0,
+                    resting_at: CursorLocation::InFile,
+                },
                 content_diff: Vec::new(),
             }
         )
@@ -69,9 +77,12 @@ impl Seek for FileBuffer {
                             // set new file buffer position
                             self.file_buffer.seek(SeekFrom::Start(curr_pos as u64)).map(|_| {
                                 // If ok, set pos and return.
-                                self.cursor_pos = FileBufferCursor::InFile {
-                                    pos: curr_pos,
+                                self.cursor_pos = CursorInfo {
+                                    diff_index: n,
+                                    diff_pos: 0,
+                                    file_pos: curr_pos,
                                     offset: offset,
+                                    resting_at: CursorLocation::InFile,
                                 };
                                 index
                             })
@@ -80,10 +91,12 @@ impl Seek for FileBuffer {
                             self.file_buffer.seek(SeekFrom::Start(slice.start as u64)).map(|_| {
                                 // If ok, set pos and return.
                                 let position = ((index as usize - slice.start) as i128 - offset) as usize;
-                                self.cursor_pos = FileBufferCursor::InDiff {
+                                self.cursor_pos = CursorInfo {
                                     diff_index: n,
-                                    pos: position,
+                                    diff_pos: position,
+                                    file_pos: slice.start,
                                     offset: offset,
+                                    resting_at: CursorLocation::InDiff,
                                 };
                                 index
                             })
@@ -98,9 +111,12 @@ impl Seek for FileBuffer {
                     let bfmax = self.file_metadata.len();
                     let index = min(bfmax, (index as i128 - offset) as u64) as usize;
 
-                    self.cursor_pos = FileBufferCursor::InFile {
-                        pos: index,
+                    self.cursor_pos = CursorInfo {
+                        diff_index: self.content_diff.len(),
+                        diff_pos: 0,
+                        file_pos: index,
                         offset: offset,
+                        resting_at: CursorLocation::InFile,
                     };
                     ((index as i128) + offset) as u64
                 })
@@ -121,18 +137,23 @@ impl Seek for FileBuffer {
                         // If in diff, before the file content
                         return if i128::from(index) < diff_end_index {
                             self.file_buffer.seek(SeekFrom::End(slice.start as i64 - self.file_metadata.len() as i64)).map(|_| {
-                                self.cursor_pos = FileBufferCursor::InDiff {
+                                self.cursor_pos = CursorInfo {
                                     diff_index: n,
-                                    pos: (index as i128 - diff_start_index) as usize,
+                                    diff_pos: (index as i128 - diff_start_index) as usize,
+                                    file_pos: slice.start,
                                     offset: offset,
+                                    resting_at: CursorLocation::InDiff,
                                 };
                                 index
                             })
                         } else {
                             self.file_buffer.seek(SeekFrom::End((index as i128 - offset) as i64)).map(|_| {
-                                self.cursor_pos = FileBufferCursor::InFile {
-                                    pos: (index as i128 - offset) as usize,
+                                self.cursor_pos = CursorInfo {
+                                    diff_index: n,
+                                    diff_pos: 0,
+                                    file_pos: (index as i128 - offset) as usize,
                                     offset: offset,
+                                    resting_at: CursorLocation::InFile,
                                 };
                                 index
                             })
@@ -143,14 +164,24 @@ impl Seek for FileBuffer {
                 }
  
                 self.file_buffer.seek(SeekFrom::End((index as i128 - offset) as i64)).map(|_| {
-                    self.cursor_pos = FileBufferCursor::InFile {
-                        pos: index as usize,
+                    self.cursor_pos = CursorInfo {
+                        diff_index: 0,
+                        diff_pos: 0,
+                        file_pos: index as usize,
                         offset: 0,
+                        resting_at: CursorLocation::InFile,
                     };
                     index
                 })
             },
-            SeekFrom::Current(index) => todo!(),
+            SeekFrom::Current(index) => {
+                // if index > 0 {
+                //     match self.cursor_pos {
+                //     }
+                // } else {
+                // }
+                todo!()
+            },
         }
     }
 }
@@ -176,7 +207,7 @@ mod tests {
         file.content_diff.push(diff);
         file.content_diff.push(diff2);
 
-        println!("{:?}", file.seek(SeekFrom::End(-2)));
+        // println!("{:?}", file.seek(SeekFrom::End(-2)));
 
     }
 }
