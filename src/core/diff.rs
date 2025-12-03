@@ -1,5 +1,5 @@
 use std::ops::Range;
-use std::cmp::{Ordering, min, max};
+use std::cmp::{Ordering, min, max, PartialEq};
 
 #[cfg_attr(test, derive(Debug))]
 #[derive(PartialEq, Clone)]
@@ -24,7 +24,7 @@ impl Diff {
         &self.repl
     }
 
-    pub fn size_diff(&self) -> i128 {
+    pub fn get_size(&self) -> i128 {
         let pos = (self.repl.len() + self.slice.start) as i128;
         pos - (self.slice.end as i128)
     }
