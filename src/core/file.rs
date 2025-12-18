@@ -210,4 +210,25 @@ mod tests {
         // println!("{:?}", file.seek(SeekFrom::End(-2)));
 
     }
+
+    // Test all operations of Seek with the following variations
+    //
+    // Files:
+    // - Empty file and empty diff
+    // - Empty file and one diff
+    // - Empty file and multiple diff
+    // - Non-empty file and empty diff
+    // - Non-empty file and one diff
+    // - Non-empty file and multiple diff
+    //
+    // Index (do same with negative values for methods that allow):
+    // - In file size
+    // - In file size +(negative diff)
+    // - Greater than file size but less than +diff
+    // - Greater than file+diff
+    // - Greater than file+(negative diff)
+    //
+    // Endpoint starting from/ending at:
+    // - diff
+    // - file
 }
