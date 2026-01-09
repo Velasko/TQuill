@@ -4,15 +4,20 @@ use std::cell::RefCell;
 
 use crate::core::diff::Diff;
 
-struct DiffIndex<T> { 
+struct DiffIndex { 
     diff_pos: usize,
-    index: T
+    index: usize
+}
+
+struct FileIndex {
+    prev_diff: Option<usize>,
+    index: u64,
 }
 
 #[cfg_attr(test, derive(Debug))]
 enum CursorLocation {
-    InDiff(DiffIndex<usize>),
-    InFile(u64),
+    InDiff(DiffIndex),
+    InFile(FileIndex),
 }
 
 #[cfg_attr(test, derive(Debug))]
@@ -41,7 +46,7 @@ impl FileBuffer {
                 file_metadata: metadata,
                 cursor_pos: CursorInfo {
                     offset: 0,
-                    pos: RefCell::new(CursorLocation::InFile(0)),
+                    pos: RefCell::new(CursorLocation::InFile(FileIndex { prev_diff: None, index: 0 })),
                 },
                 content_diff: Vec::new(),
             }
@@ -70,7 +75,7 @@ impl Seek for FileBuffer {
             },
             SeekFrom::Current(index) => {
                 if index > 0 {
-                    let mut cursor_info = self.cursor_pos.pos.get_mut();
+                    let cursor_info = self.cursor_pos.pos.get_mut();
                     match cursor_info {
                         CursorLocation::InDiff(cursor) => {
                             let index: usize = index.try_into().unwrap();
@@ -80,14 +85,30 @@ impl Seek for FileBuffer {
                                 let base_index: i64 = (cur_diff.get_slice().start + cursor.index).try_into().unwrap();
                                 Ok((base_index + &self.cursor_pos.offset).try_into().unwrap())
                             } else {
-                                let new_index = index + cursor.index - cur_diff.get_slice().len();
+                                let new_index = index + cursor.index - cur_diff.get_repl().len();
                                 self.cursor_pos.offset += cur_diff.get_size();
-                                self.cursor_pos.pos = RefCell::new(CursorLocation::InFile(cur_diff.get_slice().end.try_into().unwrap()));
+                                self.cursor_pos.pos = RefCell::new(CursorLocation::InFile(FileIndex {
+                                    prev_diff: Some(cursor.diff_pos),
+                                    index: cur_diff.get_slice().end.try_into().unwrap()
+                                }));
 
                                 self.seek(SeekFrom::Current(new_index as i64))
                             }
                         },
-                        CursorLocation::InFile(cursor) => { todo!() }
+                        CursorLocation::InFile(cursor) => {
+                            let pos = cursor.index;
+                            let mut local_offset = 0;
+                            for (n, diff) in self.content_diff.iter().enumerate() {
+                                if pos + index - local_offset < diff.get_slice().start {
+                                    // If in file, before diff
+
+                                } else if pos + index - local_offset < diff.get_slice().start + diff.get_repl().len() {
+                                    //If in diff
+                                }
+                                local_offset += diff.get_size();
+                            }
+                            todo!()
+                        }
                     }
                 } else {
                     todo!("impl when going back");
