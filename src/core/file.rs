@@ -1,23 +1,24 @@
-use std::cmp::min;
 use std::fs::{File, Metadata};
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
-use std::rc::Rc;
+use std::cell::RefCell;
 
 use crate::core::diff::Diff;
 
+struct DiffIndex<T> { 
+    diff_pos: usize,
+    index: T
+}
+
 #[cfg_attr(test, derive(Debug))]
 enum CursorLocation {
-    InDiff,
-    InFile,
+    InDiff(DiffIndex<usize>),
+    InFile(u64),
 }
 
 #[cfg_attr(test, derive(Debug))]
 struct CursorInfo {
-    diff_index: usize,
-    diff_pos: usize,
-    file_pos: usize,
-    offset: i128,
-    resting_at: CursorLocation
+    offset: i64,
+    pos: RefCell<CursorLocation>
 }
 
 #[cfg_attr(test, derive(Debug))]
@@ -39,11 +40,8 @@ impl FileBuffer {
                 file_buffer: BufReader::new(file),
                 file_metadata: metadata,
                 cursor_pos: CursorInfo {
-                    diff_index: 0,
-                    diff_pos: 0,
-                    file_pos: 0,
                     offset: 0,
-                    resting_at: CursorLocation::InFile,
+                    pos: RefCell::new(CursorLocation::InFile(0)),
                 },
                 content_diff: Vec::new(),
             }
@@ -53,9 +51,9 @@ impl FileBuffer {
 
 impl Read for FileBuffer {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let og_pos = self.file_buffer.stream_position();
+        // let og_pos = self.file_buffer.stream_position();
         let content = self.file_buffer.read(buf);
-        let new_pos = self.file_buffer.stream_position();
+        // let new_pos = self.file_buffer.stream_position();
 
         content
     }
@@ -65,122 +63,35 @@ impl Seek for FileBuffer {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         match pos {
             SeekFrom::Start(index) => {
-                let mut offset: i128 = 0;
-                for (n, diff) in self.content_diff.iter().enumerate() {
-                    let slice = diff.get_slice();
-
-                    // If before the end of that slice, return
-                    if i128::from(index) < offset + (slice.start + diff.get_repl().len()) as i128  {
-                        // if in file, before diff
-                        return if i128::from(index) < offset + slice.start as i128 {
-                            let curr_pos = ((index as i128) - offset) as usize;
-                            // set new file buffer position
-                            self.file_buffer.seek(SeekFrom::Start(curr_pos as u64)).map(|_| {
-                                // If ok, set pos and return.
-                                self.cursor_pos = CursorInfo {
-                                    diff_index: n,
-                                    diff_pos: 0,
-                                    file_pos: curr_pos,
-                                    offset: offset,
-                                    resting_at: CursorLocation::InFile,
-                                };
-                                index
-                            })
-                        } else { // if in diff
-                            // set new file bffer position
-                            self.file_buffer.seek(SeekFrom::Start(slice.start as u64)).map(|_| {
-                                // If ok, set pos and return.
-                                let position = ((index as usize - slice.start) as i128 - offset) as usize;
-                                self.cursor_pos = CursorInfo {
-                                    diff_index: n,
-                                    diff_pos: position,
-                                    file_pos: slice.start,
-                                    offset: offset,
-                                    resting_at: CursorLocation::InDiff,
-                                };
-                                index
-                            })
-                        }
-
-                    }
-
-                    offset += diff.get_size();
-                }
-
-                self.file_buffer.seek(SeekFrom::Start(index)).map(|_| {
-                    let bfmax = self.file_metadata.len();
-                    let index = min(bfmax, (index as i128 - offset) as u64) as usize;
-
-                    self.cursor_pos = CursorInfo {
-                        diff_index: self.content_diff.len(),
-                        diff_pos: 0,
-                        file_pos: index,
-                        offset: offset,
-                        resting_at: CursorLocation::InFile,
-                    };
-                    ((index as i128) + offset) as u64
-                })
-
+                todo!();
             },
             SeekFrom::End(index) => {
-                let index = (self.file_metadata.len() as i128 + index as i128) as u64;
-                let mut offset = self.content_diff.iter().fold(0, |acc, diff| acc + diff.get_size());
-
-                for (n, diff) in self.content_diff.iter().enumerate().rev() {
-                    let slice = diff.get_slice();
-
-
-                    // If after the beginning of the slice, return
-                    let diff_end_index = (slice.start + diff.get_repl().len()) as i128 + offset;
-                    let diff_start_index = (slice.start as i128) + offset;
-                    if i128::from(index) >= diff_start_index {
-                        // If in diff, before the file content
-                        return if i128::from(index) < diff_end_index {
-                            self.file_buffer.seek(SeekFrom::End(slice.start as i64 - self.file_metadata.len() as i64)).map(|_| {
-                                self.cursor_pos = CursorInfo {
-                                    diff_index: n,
-                                    diff_pos: (index as i128 - diff_start_index) as usize,
-                                    file_pos: slice.start,
-                                    offset: offset,
-                                    resting_at: CursorLocation::InDiff,
-                                };
-                                index
-                            })
-                        } else {
-                            self.file_buffer.seek(SeekFrom::End((index as i128 - offset) as i64)).map(|_| {
-                                self.cursor_pos = CursorInfo {
-                                    diff_index: n,
-                                    diff_pos: 0,
-                                    file_pos: (index as i128 - offset) as usize,
-                                    offset: offset,
-                                    resting_at: CursorLocation::InFile,
-                                };
-                                index
-                            })
-                        }
-                    }
-
-                    offset -= diff.get_size();
-                }
- 
-                self.file_buffer.seek(SeekFrom::End((index as i128 - offset) as i64)).map(|_| {
-                    self.cursor_pos = CursorInfo {
-                        diff_index: 0,
-                        diff_pos: 0,
-                        file_pos: index as usize,
-                        offset: 0,
-                        resting_at: CursorLocation::InFile,
-                    };
-                    index
-                })
+                todo!();
             },
             SeekFrom::Current(index) => {
-                // if index > 0 {
-                //     match self.cursor_pos {
-                //     }
-                // } else {
-                // }
-                todo!()
+                if index > 0 {
+                    let mut cursor_info = self.cursor_pos.pos.get_mut();
+                    match cursor_info {
+                        CursorLocation::InDiff(cursor) => {
+                            let index: usize = index.try_into().unwrap();
+                            let cur_diff = &self.content_diff[cursor.diff_pos];
+                            if cursor.index + index < cur_diff.get_slice().len() {
+                                cursor.index += index;
+                                let base_index: i64 = (cur_diff.get_slice().start + cursor.index).try_into().unwrap();
+                                Ok((base_index + &self.cursor_pos.offset).try_into().unwrap())
+                            } else {
+                                let new_index = index + cursor.index - cur_diff.get_slice().len();
+                                self.cursor_pos.offset += cur_diff.get_size();
+                                self.cursor_pos.pos = RefCell::new(CursorLocation::InFile(cur_diff.get_slice().end.try_into().unwrap()));
+
+                                self.seek(SeekFrom::Current(new_index as i64))
+                            }
+                        },
+                        CursorLocation::InFile(cursor) => { todo!() }
+                    }
+                } else {
+                    todo!("impl when going back");
+                }
             },
         }
     }

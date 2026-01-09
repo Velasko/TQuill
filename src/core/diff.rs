@@ -24,9 +24,9 @@ impl Diff {
         &self.repl
     }
 
-    pub fn get_size(&self) -> i128 {
-        let pos = (self.repl.len() + self.slice.start) as i128;
-        pos - (self.slice.end as i128)
+    pub fn get_size(&self) -> i64 {
+        let pos = (self.repl.len() + self.slice.start) as i64;
+        pos - (self.slice.end as i64)
     }
 
     fn intersects(&self, other: &Self) -> bool {
