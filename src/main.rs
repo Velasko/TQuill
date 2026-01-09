@@ -80,12 +80,6 @@ impl Widget for &App {
         let ps = SyntaxSet::load_defaults_newlines();
         let ts = ThemeSet::load_defaults();
 
-        let syntax = ps.find_syntax_by_extension("rs").unwrap();
-        let mut h = HighlightLines::new(syntax, &ts.themes["base16-ocean.dark"]);
-        let s = "pub struct Wow { hi: u64 } fn blah() -> u64 {}";
-        let ranges: Vec<(Style, &str)> = h.highlight_line(s, &ps).unwrap();
-        let escaped = vec![as_24_bit_terminal_escaped(&ranges[..], true)];
-
         let title = Line::from(" Counter App Tutorial ".bold());
         let instructions = Line::from(vec![
             " Decrement ".into(),
@@ -106,13 +100,6 @@ impl Widget for &App {
                 "Value: ".into(),
                 self.counter.to_string().yellow(),
             ]),
-            Line::from(
-                ranges.iter().map(|i|{
-                    Span::styled(i.1, syntect_to_ratatui(i.0))
-                // escaped.iter().map(|i|{
-                //     Span::raw(i)
-                }).collect::<Vec<_>>()
-            ),
         ]);
 
 
@@ -122,30 +109,6 @@ impl Widget for &App {
             .render(area, buf)
         ;
     }
-}
-
-fn syntect_to_ratatui(syn: Style) -> ratatui::style::Style {
-    let mut style = ratatui::style::Style::new();
-
-    let bg = syn.background;
-    style.bg = Some(Color::Rgb(bg.r, bg.g, bg.b));
-
-    let fg = syn.foreground;
-    style.fg = Some(Color::Rgb(fg.r, fg.g, fg.b));
-
-    if syn.font_style.intersects(FontStyle::BOLD) {
-        style = style.add_modifier(Modifier::BOLD)
-    }
-
-    if syn.font_style.intersects(FontStyle::ITALIC) {
-        style = style.add_modifier(Modifier::ITALIC)
-    }
-
-    if syn.font_style.intersects(FontStyle::UNDERLINE) {
-        style = style.add_modifier(Modifier::UNDERLINED)
-    }
-
-    style
 }
 
 #[cfg(test)]
