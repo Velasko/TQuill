@@ -34,11 +34,20 @@ fn main() -> Result<()> {
     app_result
 }
 
-#[derive(Default)]
 struct App {
     state: AppState,
     selected_tab: usize,
     tabs: Vec<Tab>,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            state: AppState::default(),
+            selected_tab: 0,
+            tabs: vec![Tab::default()],
+        }
+    }
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
@@ -72,11 +81,16 @@ impl App {
     }
 
     pub fn next_tab(&mut self) {
-        self.selected_tab = self.selected_tab.saturating_add(1);
+        self.selected_tab = self.selected_tab.saturating_add(1) % self.tabs.len();
     }
 
     pub fn previous_tab(&mut self) {
-        self.selected_tab = self.selected_tab.saturating_sub(1);
+        let sub = self.selected_tab.overflowing_sub(1);
+        self.selected_tab = if sub.1 {
+            self.tabs.len() - 1
+        } else {
+            sub.0
+        };
     }
 
     pub fn quit(&mut self) {
@@ -103,7 +117,7 @@ impl Widget for &App {
 impl App {
     fn render_tabs(&self, area: Rect, buf: &mut Buffer) {
         let titles = self.tabs.iter().map(|tab| tab.title.clone());
-        let highlight_style = (Color::default(), tailwind::RED.c700);
+        let highlight_style = (Color::default(), tailwind::BLUE.c700);
         Tabs::new(titles)
             .highlight_style(highlight_style)
             .select(self.selected_tab)
@@ -146,5 +160,14 @@ impl Tab {
                     .border_style(tailwind::BLUE.c700)
             )
             .render(area, buf);
+    }
+}
+
+impl Default for Tab {
+    fn default() -> Self {
+        Self {
+            title: String::from("New File"),
+            content: String::from(""),
+        }
     }
 }
