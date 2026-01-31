@@ -13,7 +13,7 @@
 //! [examples]: https://github.com/ratatui/ratatui/blob/main/examples
 //! [examples readme]: https://github.com/ratatui/ratatui/blob/main/examples/README.md
 
-use std::rc::Rc;
+use std::{rc::Rc, cell::RefCell};
 use color_eyre::Result;
 use ratatui::{
     buffer::Buffer,
@@ -25,6 +25,9 @@ use ratatui::{
     widgets::{Block, Padding, Paragraph, Tabs, Widget, Wrap},
     DefaultTerminal,
 };
+
+mod core;
+use crate::core::file::{FileBuffer, FileBufferTrait};
 
 fn main() -> Result<()> {
     color_eyre::install()?;
@@ -116,7 +119,7 @@ impl Widget for &App {
 
 impl App {
     fn render_tabs(&self, area: Rect, buf: &mut Buffer) {
-        let titles = self.tabs.iter().map(|tab| tab.title.clone());
+        let titles = self.tabs.iter().map(|tab| tab.get_title());
         let highlight_style = (Color::default(), tailwind::BLUE.c700);
         Tabs::new(titles)
             .highlight_style(highlight_style)
@@ -139,19 +142,24 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
 
 impl Widget for Tab {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_tab(area,buf)
+        self.render_tab(area, buf)
     }
 }
 
 #[derive(Clone)]
 struct Tab {
     title: String,
-    content: String
+    content: Rc<RefCell<FileBuffer>>
 }
 
 impl Tab {
+    fn get_title(&self) -> &str {
+        self.title.as_ref()
+    }
+
     fn render_tab(self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new(self.content)
+        let content = self.content.borrow_mut().read();
+        Paragraph::new(content)
             .wrap(Wrap { trim: false })
             .block(
                 Block::bordered()
@@ -165,9 +173,10 @@ impl Tab {
 
 impl Default for Tab {
     fn default() -> Self {
+        let filename = "Cargo.lock";
         Self {
-            title: String::from("New File"),
-            content: String::from(""),
+            title: String::from(filename),
+            content: Rc::new(RefCell::new(FileBuffer::open(filename).expect("testing"))),
         }
     }
 }

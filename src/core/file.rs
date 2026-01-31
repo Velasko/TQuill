@@ -4,12 +4,14 @@ use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
 use color_eyre::eyre::Result;
 
-trait FileBufferTrait:  Read + Seek + Sized {
+pub trait FileBufferTrait:  Read + Seek + Sized { // add write (iterator ?)
     fn open(path: &str) -> io::Result<Self>; 
+    fn get_filename(&self) -> &str;
+    fn read(&mut self) -> String;
 }
 
 #[cfg_attr(test, derive(Debug))]
-struct FileBuffer {
+pub struct FileBuffer {
     filename: String,
     file_metadata: Metadata,
     file_buffer: Cursor<Vec<u8>>,
@@ -28,6 +30,17 @@ impl FileBufferTrait for FileBuffer {
                 file_metadata: metadata,
             }
         )
+    }
+
+    fn get_filename(&self) -> &str {
+        self.filename.as_str()
+    }
+
+    fn read(&mut self) -> String {
+        let mut content = String::new();
+        let _ = self.file_buffer.seek(SeekFrom::Start(0));
+        let _ = self.file_buffer.read_to_string(&mut content);
+        content
     }
 }
 
