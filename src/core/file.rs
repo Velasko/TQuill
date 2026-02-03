@@ -1,13 +1,14 @@
-use std::cmp::min;
 use std::fs::{File, Metadata};
-use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{self, Cursor, Read, Seek, SeekFrom, Write, BufRead};
 
 use color_eyre::eyre::Result;
 
 pub trait FileBufferTrait:  Read + Seek + Sized { // add write (iterator ?)
     fn open(path: &str) -> io::Result<Self>; 
     fn get_filename(&self) -> &str;
-    fn read(&mut self) -> String;
+    fn previous_line(&mut self);
+    fn next_line(&mut self) -> String;
+    fn read_lines<N>(&mut self, ammount: N) -> Vec<String> where N: Into<usize>;
 }
 
 #[cfg_attr(test, derive(Debug))]
@@ -36,12 +37,23 @@ impl FileBufferTrait for FileBuffer {
         self.filename.as_str()
     }
 
-    fn read(&mut self) -> String {
-        let mut content = String::new();
-        let _ = self.file_buffer.seek(SeekFrom::Start(0));
-        let _ = self.file_buffer.read_to_string(&mut content);
-        content
+    fn previous_line(&mut self) {
+        todo!();
     }
+
+    fn next_line(&mut self) -> String {
+        let mut content = vec![];
+        let _ = self.file_buffer.read_until(b'\n', &mut content);
+        String::from_utf8(content).unwrap()
+    }
+
+    fn read_lines<N>(&mut self, ammount: N) -> Vec<String> where N: Into<usize> {
+        let curr_pos = self.stream_position().unwrap();
+        let data = (0..ammount.into()).map(|_| self.next_line()).collect::<Vec::<String>>();
+        let _ = self.seek(SeekFrom::Start(curr_pos));
+        data
+    }
+
 }
 
 impl Read for FileBuffer {

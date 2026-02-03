@@ -16,6 +16,7 @@
 use std::{rc::Rc, cell::RefCell};
 use color_eyre::Result;
 use ratatui::{
+    prelude::Text,
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
@@ -75,6 +76,7 @@ impl App {
                 match key.code {
                     KeyCode::Char('l') | KeyCode::Right => self.next_tab(),
                     KeyCode::Char('h') | KeyCode::Left => self.previous_tab(),
+                    KeyCode::Down => {let _ = self.tabs[self.selected_tab].content.borrow_mut().next_line();},
                     KeyCode::Char('q') | KeyCode::Esc => self.quit(),
                     _ => {}
                 }
@@ -158,8 +160,8 @@ impl Tab {
     }
 
     fn render_tab(self, area: Rect, buf: &mut Buffer) {
-        let content = self.content.borrow_mut().read();
-        Paragraph::new(content)
+        let content = self.content.borrow_mut().read_lines(area.height);
+        Paragraph::new(Text::from_iter(content))
             .wrap(Wrap { trim: false })
             .block(
                 Block::bordered()
