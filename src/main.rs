@@ -134,7 +134,8 @@ impl App {
 }
 
 fn render_title(area: Rect, buf: &mut Buffer) {
-    "Ratatui Tabs Example".bold().render(area, buf);
+    let version = format!("v{}.{}", env!("CARGO_PKG_VERSION_MAJOR"), env!("CARGO_PKG_VERSION_MINOR"));
+    format!("{} {}", env!("CARGO_PKG_NAME"), version).bold().render(area, buf);
 }
 
 fn render_footer(area: Rect, buf: &mut Buffer) {
