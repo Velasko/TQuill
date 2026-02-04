@@ -76,8 +76,8 @@ impl App {
                 match key.code {
                     KeyCode::Char('l') | KeyCode::Right => self.next_tab(),
                     KeyCode::Char('h') | KeyCode::Left => self.previous_tab(),
-                    KeyCode::Down => {let _ = self.tabs[self.selected_tab].content.borrow_mut().next_line();},
-                    KeyCode::Up => {let _ = self.tabs[self.selected_tab].content.borrow_mut().previous_line(130u16);},
+                    KeyCode::PageDown => self.line_down(),
+                    KeyCode::PageUp => self.line_up(),
                     KeyCode::Char('q') | KeyCode::Esc => self.quit(),
                     _ => {}
                 }
@@ -97,6 +97,14 @@ impl App {
         } else {
             sub.0
         };
+    }
+
+    pub fn line_up(&mut self) {
+        let _ = self.tabs[self.selected_tab].content.borrow_mut().previous_line(130u16);
+    }
+
+    pub fn line_down(&mut self) {
+        let _ = self.tabs[self.selected_tab].content.borrow_mut().next_line();
     }
 
     pub fn quit(&mut self) {
