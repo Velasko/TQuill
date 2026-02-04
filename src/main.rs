@@ -77,6 +77,7 @@ impl App {
                     KeyCode::Char('l') | KeyCode::Right => self.next_tab(),
                     KeyCode::Char('h') | KeyCode::Left => self.previous_tab(),
                     KeyCode::Down => {let _ = self.tabs[self.selected_tab].content.borrow_mut().next_line();},
+                    KeyCode::Up => {let _ = self.tabs[self.selected_tab].content.borrow_mut().previous_line(130u16);},
                     KeyCode::Char('q') | KeyCode::Esc => self.quit(),
                     _ => {}
                 }

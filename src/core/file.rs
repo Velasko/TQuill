@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::fs::{File, Metadata};
 use std::io::{self, Cursor, Read, Seek, SeekFrom, Write, BufRead};
 
@@ -6,7 +7,7 @@ use color_eyre::eyre::Result;
 pub trait FileBufferTrait:  Read + Seek + Sized { // add write (iterator ?)
     fn open(path: &str) -> io::Result<Self>; 
     fn get_filename(&self) -> &str;
-    fn previous_line(&mut self);
+    fn previous_line<S>(&mut self, max_line_size: S) where S: Into<usize>;
     fn next_line(&mut self) -> String;
     fn read_lines<N>(&mut self, ammount: N) -> Vec<String> where N: Into<usize>;
 }
@@ -37,8 +38,23 @@ impl FileBufferTrait for FileBuffer {
         self.filename.as_str()
     }
 
-    fn previous_line(&mut self) {
-        todo!();
+    fn previous_line<S>(&mut self, max_line_size: S) where S: Into<usize> {
+        let curr_pos = self.stream_position().expect("keeping stream position");
+        let line_size = min((curr_pos) as usize, max_line_size.into());
+
+        let mut buffer: Vec<u8> = Vec::new();
+        buffer.resize(line_size, 0);
+
+        let line_size: i64 = line_size.try_into().expect("line_size shouldn't be > max u32");
+
+        let pos = self.seek(SeekFrom::Current(-line_size)).expect("Seeking 0 or later"); 
+
+        let _ = self.read_exact(&mut buffer);
+        // If it breaks here, I assume it is because utf8 characters may use more than one byte
+        let text = String::from_utf8(buffer).unwrap();
+
+        let prev_line_size: i64 = text.lines().rev().next().map_or(0, |line| line.len().try_into().expect("lines shouldn't be > max u32")) +1;
+        let _ = self.seek(SeekFrom::Current(-prev_line_size));
     }
 
     fn next_line(&mut self) -> String {
