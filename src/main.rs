@@ -150,13 +150,12 @@ impl Widget for Tab {
 
 #[derive(Clone)]
 struct Tab {
-    title: String,
     content: Rc<RefCell<FileBuffer>>
 }
 
 impl Tab {
-    fn get_title(&self) -> &str {
-        self.title.as_ref()
+    fn get_title(&self) -> String {
+        self.content.borrow().get_filename().to_string()
     }
 
     fn render_tab(self, area: Rect, buf: &mut Buffer) {
@@ -177,7 +176,6 @@ impl Default for Tab {
     fn default() -> Self {
         let filename = "Cargo.lock";
         Self {
-            title: String::from(filename),
             content: Rc::new(RefCell::new(FileBuffer::open(filename).expect("testing"))),
         }
     }
