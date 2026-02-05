@@ -2,8 +2,6 @@ use std::cmp::min;
 use std::fs::{File, Metadata};
 use std::io::{self, Cursor, Read, Seek, SeekFrom, Write, BufRead};
 
-use color_eyre::eyre::Result;
-
 pub trait FileBufferTrait:  Read + Seek + Sized { // add write (iterator ?)
     fn open(path: &str) -> io::Result<Self>; 
     fn get_filename(&self) -> &str;
@@ -51,7 +49,7 @@ impl FileBufferTrait for FileBuffer {
 
         let line_size: i64 = line_size.try_into().expect("line_size shouldn't be > max u32");
 
-        let pos = self.seek(SeekFrom::Current(-line_size)).expect("Seeking 0 or later"); 
+        let _pos = self.seek(SeekFrom::Current(-line_size)).expect("Seeking 0 or later"); 
 
         let _ = self.read_exact(&mut buffer);
         // If it breaks here, I assume it is because utf8 characters may use more than one byte

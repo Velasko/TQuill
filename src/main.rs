@@ -1,34 +1,20 @@
-//! # [Ratatui] Tabs example
-//!
-//! The latest version of this example is available in the [examples] folder in the repository.
-//!
-//! Please note that the examples are designed to be run against the `main` branch of the Github
-//! repository. This means that you may not be able to compile with the latest release version on
-//! crates.io, or the one that you have installed locally.
-//!
-//! See the [examples readme] for more information on finding examples that match the version of the
-//! library you are using.
-//!
-//! [Ratatui]: https://github.com/ratatui/ratatui
-//! [examples]: https://github.com/ratatui/ratatui/blob/main/examples
-//! [examples readme]: https://github.com/ratatui/ratatui/blob/main/examples/README.md
-
 use std::{rc::Rc, cell::RefCell};
 use color_eyre::Result;
 use ratatui::{
-    prelude::Text,
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
     style::{palette::tailwind, Color, Stylize},
-    symbols,
     text::Line,
-    widgets::{Block, Padding, Paragraph, Tabs, Widget, Wrap},
+    widgets::{Tabs, Widget},
     DefaultTerminal,
 };
 
 mod core;
-use crate::core::file::{FileBuffer, FileBufferTrait};
+use crate::core::file::{FileBufferTrait};
+
+mod tab;
+use crate::tab::*;
 
 fn main() -> Result<()> {
     color_eyre::install()?;
@@ -41,7 +27,7 @@ fn main() -> Result<()> {
 struct App {
     state: AppState,
     selected_tab: usize,
-    tabs: Vec<Tab>,
+    tabs: Vec<Rc<RefCell<Tab>>>,
 }
 
 impl Default for App {
@@ -49,7 +35,7 @@ impl Default for App {
         Self {
             state: AppState::default(),
             selected_tab: 0,
-            tabs: vec![Tab::default()],
+            tabs: vec![Rc::new(RefCell::new(Tab::default()))],
         }
     }
 }
@@ -87,11 +73,11 @@ impl App {
     }
 
     pub fn writer_move_right(&mut self) {
-        let _ = self.tabs[self.selected_tab].content.borrow_mut().move_right(1);
+        let _ = self.tabs[self.selected_tab].borrow_mut().content.borrow_mut().move_right(1);
     }
 
     pub fn writer_move_left(&mut self) {
-        let _ = self.tabs[self.selected_tab].content.borrow_mut().move_left(1);
+        let _ = self.tabs[self.selected_tab].borrow_mut().content.borrow_mut().move_left(1);
     }
 
     pub fn next_tab(&mut self) {
@@ -108,11 +94,11 @@ impl App {
     }
 
     pub fn line_up(&mut self) {
-        let _ = self.tabs[self.selected_tab].content.borrow_mut().previous_line(130u16);
+        let _ = self.tabs[self.selected_tab].borrow_mut().content.borrow_mut().previous_line(130u16);
     }
 
     pub fn line_down(&mut self) {
-        let _ = self.tabs[self.selected_tab].content.borrow_mut().next_line();
+        let _ = self.tabs[self.selected_tab].borrow_mut().content.borrow_mut().next_line();
     }
 
     pub fn quit(&mut self) {
@@ -131,14 +117,14 @@ impl Widget for &App {
 
         render_title(title_area, buf);
         self.render_tabs(tabs_area, buf);
-        self.tabs[self.selected_tab].clone().render(inner_area, buf);
+        self.tabs[self.selected_tab].borrow_mut().clone().render(inner_area, buf);
         render_footer(footer_area, buf);
     }
 }
 
 impl App {
     fn render_tabs(&self, area: Rect, buf: &mut Buffer) {
-        let titles = self.tabs.iter().map(|tab| tab.get_title());
+        let titles = self.tabs.iter().map(|tab| tab.borrow().get_title());
         let highlight_style = (Color::default(), tailwind::BLUE.c700);
         Tabs::new(titles)
             .highlight_style(highlight_style)
@@ -160,41 +146,4 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
         .render(area, buf);
 }
 
-impl Widget for Tab {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        self.render_tab(area, buf)
-    }
-}
 
-#[derive(Clone)]
-struct Tab {
-    content: Rc<RefCell<FileBuffer>>
-}
-
-impl Tab {
-    fn get_title(&self) -> String {
-        self.content.borrow().get_filename().to_string()
-    }
-
-    fn render_tab(self, area: Rect, buf: &mut Buffer) {
-        let content = self.content.borrow_mut().read_lines(area.height);
-        Paragraph::new(Text::from_iter(content))
-            .wrap(Wrap { trim: false })
-            .block(
-                Block::bordered()
-                    .border_set(symbols::border::PROPORTIONAL_TALL)
-                    .padding(Padding::horizontal(1))
-                    .border_style(tailwind::BLUE.c700)
-            )
-            .render(area, buf);
-    }
-}
-
-impl Default for Tab {
-    fn default() -> Self {
-        let filename = "Cargo.lock";
-        Self {
-            content: Rc::new(RefCell::new(FileBuffer::open(filename).expect("testing"))),
-        }
-    }
-}
