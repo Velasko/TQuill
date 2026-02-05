@@ -26,16 +26,18 @@ fn main() -> Result<()> {
 
 struct App {
     state: AppState,
-    selected_tab: usize,
+    selected_tab: Option<Rc<RefCell<Tab>>>,
     tabs: Vec<Rc<RefCell<Tab>>>,
 }
 
 impl Default for App {
     fn default() -> Self {
+        // todo! open with empty file.
+        let tab = Rc::new(RefCell::new(Tab::default()));
         Self {
             state: AppState::default(),
-            selected_tab: 0,
-            tabs: vec![Rc::new(RefCell::new(Tab::default()))],
+            selected_tab: Some(Rc::clone(&tab)),
+            tabs: vec![Rc::clone(&tab)],
         }
     }
 }
@@ -117,7 +119,7 @@ impl Widget for &App {
 
         render_title(title_area, buf);
         self.render_tabs(tabs_area, buf);
-        self.tabs[self.selected_tab].borrow_mut().clone().render(inner_area, buf);
+        self.selected_tab.as_ref().map(|t| t.borrow_mut().clone().render(inner_area, buf));
         render_footer(footer_area, buf);
     }
 }
@@ -126,9 +128,10 @@ impl App {
     fn render_tabs(&self, area: Rect, buf: &mut Buffer) {
         let titles = self.tabs.iter().map(|tab| tab.borrow().get_title());
         let highlight_style = (Color::default(), tailwind::BLUE.c700);
+        let selected_tab_index = self.tabs.iter().position(|tab| self.selected_tab.as_ref().is_some_and(|sel| Rc::ptr_eq(&sel, &tab))).unwrap();
         Tabs::new(titles)
             .highlight_style(highlight_style)
-            .select(self.selected_tab)
+            .select(selected_tab_index)
             .padding("", "")
             .divider(" ")
             .render(area, buf);
