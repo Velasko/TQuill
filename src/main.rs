@@ -74,8 +74,8 @@ impl App {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 match key.code {
-                    KeyCode::Char('l') | KeyCode::Right => self.next_tab(),
-                    KeyCode::Char('h') | KeyCode::Left => self.previous_tab(),
+                    KeyCode::Right => self.writer_move_right(),
+                    KeyCode::Left => self.writer_move_left(),
                     KeyCode::PageDown => self.line_down(),
                     KeyCode::PageUp => self.line_up(),
                     KeyCode::Char('q') | KeyCode::Esc => self.quit(),
@@ -84,6 +84,14 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    pub fn writer_move_right(&mut self) {
+        let _ = self.tabs[self.selected_tab].content.borrow_mut().move_right(1);
+    }
+
+    pub fn writer_move_left(&mut self) {
+        let _ = self.tabs[self.selected_tab].content.borrow_mut().move_left(1);
     }
 
     pub fn next_tab(&mut self) {

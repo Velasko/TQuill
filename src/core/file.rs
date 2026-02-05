@@ -10,6 +10,8 @@ pub trait FileBufferTrait:  Read + Seek + Sized { // add write (iterator ?)
     fn previous_line<S>(&mut self, max_line_size: S) where S: Into<usize>;
     fn next_line(&mut self) -> String;
     fn read_lines<N>(&mut self, ammount: N) -> Vec<String> where N: Into<usize>;
+    fn move_right(&mut self, ammount: usize);
+    fn move_left(&mut self, ammount: usize);
 }
 
 #[cfg_attr(test, derive(Debug))]
@@ -17,6 +19,7 @@ pub struct FileBuffer {
     filename: String,
     file_metadata: Metadata,
     file_buffer: Cursor<Vec<u8>>,
+    pub writer: usize,
 }
 
 impl FileBufferTrait for FileBuffer {
@@ -30,6 +33,7 @@ impl FileBufferTrait for FileBuffer {
                 filename: String::from(path),
                 file_buffer: Cursor::new(content),
                 file_metadata: metadata,
+                writer: 0,
             }
         )
     }
@@ -65,11 +69,27 @@ impl FileBufferTrait for FileBuffer {
 
     fn read_lines<N>(&mut self, ammount: N) -> Vec<String> where N: Into<usize> {
         let curr_pos = self.stream_position().unwrap();
-        let data = (0..ammount.into()).map(|_| self.next_line()).collect::<Vec::<String>>();
+        let data = (0..ammount.into()).map(|_| {
+            let line_start = self.stream_position().unwrap() as usize;
+            let mut content = self.next_line();
+            let line_end = self.stream_position().unwrap() as usize;
+            if self.writer >= line_start && self.writer < line_end {
+                let index = self.writer - line_start;
+                content.replace_range(index..index+1, "_");
+            }
+            content
+        }).collect::<Vec::<String>>();
         let _ = self.seek(SeekFrom::Start(curr_pos));
         data
     }
 
+    fn move_right(&mut self, ammount: usize) {
+        self.writer = self.writer.saturating_add(ammount);
+    }
+
+    fn move_left(&mut self, ammount: usize) {
+        self.writer = self.writer.saturating_sub(ammount);
+    }
 }
 
 impl Read for FileBuffer {
