@@ -73,32 +73,32 @@ impl App {
     }
 
     pub fn writer_move_right(&mut self) {
-        let _ = self.tabs[self.selected_tab].borrow_mut().content.borrow_mut().move_right(1);
+        // let _ = self.selected_tab.borrow_mut().content.borrow_mut().move_right(1);
     }
 
     pub fn writer_move_left(&mut self) {
-        let _ = self.tabs[self.selected_tab].borrow_mut().content.borrow_mut().move_left(1);
+        // let _ = self.selected_tab.borrow_mut().content.borrow_mut().move_left(1);
     }
 
     pub fn next_tab(&mut self) {
-        self.selected_tab = self.selected_tab.saturating_add(1) % self.tabs.len();
+        // self.selected_tab = self.selected_tab.saturating_add(1) % self.tabs.len();
     }
 
     pub fn previous_tab(&mut self) {
-        let sub = self.selected_tab.overflowing_sub(1);
-        self.selected_tab = if sub.1 {
-            self.tabs.len() - 1
-        } else {
-            sub.0
-        };
+        // let sub = self.selected_tab.overflowing_sub(1);
+        // self.selected_tab = if sub.1 {
+        //     self.tabs.len() - 1
+        // } else {
+        //     sub.0
+        // };
     }
 
     pub fn line_up(&mut self) {
-        let _ = self.tabs[self.selected_tab].borrow_mut().content.borrow_mut().previous_line(130u16);
+        // let _ = self.selected_tab.borrow_mut().content.borrow_mut().previous_line(130u16);
     }
 
     pub fn line_down(&mut self) {
-        let _ = self.tabs[self.selected_tab].borrow_mut().content.borrow_mut().next_line();
+        // let _ = self.selected_tab.borrow_mut().content.borrow_mut().next_line();
     }
 
     pub fn quit(&mut self) {
