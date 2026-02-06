@@ -11,7 +11,6 @@ use ratatui::{
 };
 
 mod core;
-use crate::core::file::{FileBufferTrait};
 
 mod tab;
 use crate::tab::*;
@@ -24,10 +23,12 @@ fn main() -> Result<()> {
     app_result
 }
 
+type RefTab = Rc<RefCell<Tab>>;
+
 struct App {
     state: AppState,
-    selected_tab: Option<Rc<RefCell<Tab>>>,
-    tabs: Vec<Rc<RefCell<Tab>>>,
+    selected_tab: Option<RefTab>,
+    tabs: Vec<RefTab>,
 }
 
 impl Default for App {
@@ -74,33 +75,54 @@ impl App {
         Ok(())
     }
 
-    pub fn writer_move_right(&mut self) {
-        // let _ = self.selected_tab.borrow_mut().content.borrow_mut().move_right(1);
+    fn with_selected_tab<S>(&self, func: impl Fn(&RefTab) -> S) -> Option<S> {
+        self.selected_tab.as_ref().map(|tab| func(tab))
     }
 
-    pub fn writer_move_left(&mut self) {
-        // let _ = self.selected_tab.borrow_mut().content.borrow_mut().move_left(1);
+    pub fn writer_move_right(&self) {
+        self.with_selected_tab(|tab| tab.borrow_mut().writer_move_right(1));
+    }
+
+    pub fn writer_move_left(&self) {
+        self.with_selected_tab(|tab| tab.borrow_mut().writer_move_left(1));
+    }
+
+    pub fn get_tab_index(&self, tab: &RefTab) -> Option<usize> {
+        self.tabs.iter().position(|t| Rc::ptr_eq(t, tab))
+    }
+
+    pub fn get_selected_tab_index(&self) -> Option<usize> {
+        self.with_selected_tab(|sel| self.get_tab_index(sel).expect("Selected tab must be in list"))
     }
 
     pub fn next_tab(&mut self) {
-        // self.selected_tab = self.selected_tab.saturating_add(1) % self.tabs.len();
+        let first_tab = self.tabs.first().map(|tab| Rc::clone(tab));
+        self.selected_tab = match self.get_selected_tab_index() {
+            Some(index) => match self.tabs.get(index+1) {
+                Some(tab) => Some(Rc::clone(tab)),
+                None => first_tab,
+            },
+            None => first_tab,
+        }
     }
 
     pub fn previous_tab(&mut self) {
-        // let sub = self.selected_tab.overflowing_sub(1);
-        // self.selected_tab = if sub.1 {
-        //     self.tabs.len() - 1
-        // } else {
-        //     sub.0
-        // };
+        let last_tab = self.tabs.last().map(|tab| Rc::clone(tab));
+        self.selected_tab = match self.get_selected_tab_index() {
+            Some(index) => match self.tabs.get(index+1) {
+                Some(tab) => Some(Rc::clone(tab)),
+                None => last_tab,
+            },
+            None => last_tab,
+        }
     }
 
     pub fn line_up(&mut self) {
-        // let _ = self.selected_tab.borrow_mut().content.borrow_mut().previous_line(130u16);
+        let _ = self.with_selected_tab(|tab| tab.borrow_mut().previous_line(130u16));
     }
 
     pub fn line_down(&mut self) {
-        // let _ = self.selected_tab.borrow_mut().content.borrow_mut().next_line();
+        let _ = self.with_selected_tab(|tab| tab.borrow_mut().next_line());
     }
 
     pub fn quit(&mut self) {
@@ -128,7 +150,7 @@ impl App {
     fn render_tabs(&self, area: Rect, buf: &mut Buffer) {
         let titles = self.tabs.iter().map(|tab| tab.borrow().get_title());
         let highlight_style = (Color::default(), tailwind::BLUE.c700);
-        let selected_tab_index = self.tabs.iter().position(|tab| self.selected_tab.as_ref().is_some_and(|sel| Rc::ptr_eq(&sel, &tab))).unwrap();
+        let selected_tab_index = self.get_selected_tab_index();
         Tabs::new(titles)
             .highlight_style(highlight_style)
             .select(selected_tab_index)

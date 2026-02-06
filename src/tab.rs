@@ -1,4 +1,4 @@
-use std::{rc::Rc, cell::RefCell};
+use std::{rc::Rc, cell::{Ref, RefCell}};
 use ratatui::{
     prelude::Text,
     buffer::Buffer,
@@ -19,12 +19,16 @@ impl Widget for Tab {
 
 #[derive(Clone)]
 pub struct Tab {
-    pub content: Rc<RefCell<FileBuffer>>
+    content: Rc<RefCell<FileBuffer>>
 }
 
 impl Tab {
+    pub fn get_content(&self) -> Ref<'_, FileBuffer> {
+        self.content.borrow()
+    }
+
     pub fn get_title(&self) -> String {
-        self.content.borrow().get_filename().to_string()
+        self.get_content().get_filename().to_string()
     }
 
     pub fn render_tab(self, area: Rect, buf: &mut Buffer) {
@@ -39,6 +43,23 @@ impl Tab {
             )
             .render(area, buf);
     }
+
+    pub fn writer_move_right(&mut self, ammount: usize) {
+        self.content.borrow_mut().move_right(ammount)
+    }
+
+    pub fn writer_move_left(&mut self, ammount: usize) {
+        self.content.borrow_mut().move_left(ammount)
+    }
+
+    pub fn previous_line<S>(&mut self, max_line_size: S) where S: Into<usize> {
+        self.content.borrow_mut().previous_line(max_line_size)
+    }
+
+    pub fn next_line(&mut self) -> String {
+        self.content.borrow_mut().next_line()
+    }
+
 }
 
 impl Default for Tab {
