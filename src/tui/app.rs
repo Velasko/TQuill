@@ -19,18 +19,6 @@ pub struct App {
     tabs: Vec<RefTab>,
 }
 
-impl Default for App {
-    fn default() -> Self {
-        // todo! open with empty file.
-        let tab = Rc::new(RefCell::new(Tab::default()));
-        Self {
-            state: AppState::default(),
-            selected_tab: Some(Rc::clone(&tab)),
-            tabs: vec![Rc::clone(&tab)],
-        }
-    }
-}
-
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 enum AppState {
     #[default]
@@ -39,6 +27,17 @@ enum AppState {
 }
 
 impl App {
+    pub fn open(files: &[String]) -> Self {
+        // todo! better UI when opening no files
+        let tabs = files.iter().map(|file| Rc::new(RefCell::new(Tab::new(file)))).collect::<Vec<RefTab>>();
+        let selected = tabs.first().map(|tab| Rc::clone(tab));
+        Self {
+            state: AppState::default(),
+            selected_tab: selected,
+            tabs: tabs,
+        }
+    }
+
     pub fn run(mut self, mut terminal: DefaultTerminal) -> std::io::Result<()> {
         while self.state == AppState::Running {
             terminal.draw(|frame| frame.render_widget(&self, frame.area()))?;

@@ -23,6 +23,12 @@ pub struct Tab {
 }
 
 impl Tab {
+    pub fn new(filename: &str) -> Self {
+        Self {
+            content: Rc::new(RefCell::new(FileBuffer::open(filename).expect("testing"))),
+        }
+    }
+
     pub fn get_content(&self) -> Ref<'_, FileBuffer> {
         self.content.borrow()
     }
@@ -60,13 +66,4 @@ impl Tab {
         self.content.borrow_mut().next_line()
     }
 
-}
-
-impl Default for Tab {
-    fn default() -> Self {
-        let filename = "Cargo.lock";
-        Self {
-            content: Rc::new(RefCell::new(FileBuffer::open(filename).expect("testing"))),
-        }
-    }
 }
