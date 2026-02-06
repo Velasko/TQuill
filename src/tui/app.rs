@@ -1,5 +1,4 @@
 use std::{rc::Rc, cell::RefCell};
-use color_eyre::Result;
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEventKind},
@@ -40,7 +39,7 @@ enum AppState {
 }
 
 impl App {
-    pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
+    pub fn run(mut self, mut terminal: DefaultTerminal) -> std::io::Result<()> {
         while self.state == AppState::Running {
             terminal.draw(|frame| frame.render_widget(&self, frame.area()))?;
             self.handle_events()?;
