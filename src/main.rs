@@ -15,3 +15,10 @@ fn main() {
     ratatui::restore();
 }
 
+#[cfg(test)]
+mod test {
+
+    fn test() {
+        todo!("something")
+    }
+}
